@@ -71,7 +71,18 @@ After initializing the backup, you can start, stop, or get status of the backup.
     $
 
 
-### 4. Example of looking at backups
+### 4. Nuke backkup
+
+
+    $ hippowatch.sh --nuke
+    [Stopping]
+    [Backup stopped (38934)]
+    [Nuking backup]
+    $
+
+
+
+### 5. Example of looking at backups
 
 
     $ pwd
