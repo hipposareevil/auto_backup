@@ -119,7 +119,7 @@ After initializing the backup, you can start, stop, or get status of the backup.
 
 # zsh theme
 
-If you're using zsh and [oh-my-zsh](https://ohmyz.sh/), you can add the [zsh snippet](https://github.com/hipposareevil/auto_backup/blob/master/zsh/theme-snippet) to your PROMPT. You will need unicode enabled `iterm2` for this to look good.
+If you're using zsh and [oh-my-zsh](https://ohmyz.sh/), you can add the [zsh snippet](https://github.com/hipposareevil/auto_backup/blob/master/zsh/theme-snippet) to your PROMPT. You will need unicode enabled `iterm2` for this to look good. The thumbs up shows your backups are running, thumbs down means no backups are happening.  There will be no thumbs when outside a directory being backed up.
 
 ![zsh example](https://github.com/hipposareevil/auto_backup/blob/master/images/first.entry.png)
 
