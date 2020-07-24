@@ -114,10 +114,12 @@ After initializing the backup, you can start, stop, or get status of the backup.
 
 3. Logs of the activity go into the backup directory under the file `.copy.log`
 
+4. When necessary, update the `_create_git` method in `hippowatch.sh` to have a correct set of files to ignore for copying and for git.
+
 
 # zsh theme
 
-If you're using zsh and [oh-my-zsh](https://ohmyz.sh/), you can add the [zsh snippet](https://github.com/hipposareevil/auto_backup/blob/master/zsh/theme-snippet) to your PROMPT. You will need unicode enabled iterm2 for this to look good.
+If you're using zsh and [oh-my-zsh](https://ohmyz.sh/), you can add the [zsh snippet](https://github.com/hipposareevil/auto_backup/blob/master/zsh/theme-snippet) to your PROMPT. You will need unicode enabled `iterm2` for this to look good.
 
 ![zsh example](https://github.com/hipposareevil/auto_backup/blob/master/images/first.entry.png)
 
