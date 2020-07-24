@@ -18,6 +18,7 @@ initialize_variables() {
 
     # where to backup to
     backup_root_directory=${BACKUP_ROOT_DIRECTORY:-"/tmp/auto_backup/"}
+    backup_root_directory="${backup_root_directory}/"
     
     # what directory to back up
     source_directory="${SOURCE_DIRECTORY:-$PWD}"
@@ -65,19 +66,6 @@ initialize_variables() {
     fi
 }
 
-# Find the real source root
-_find_source_root() {
-    source=$1
-    what_to_find=".backup.directory"
-
-    path=$source
-    while [[ "$path" != "" && ! -e "$path/$what_to_find" ]]; do
-        path=${path%/*}
-    done
-    echo "$path"
-}
-
-
 ########
 # Usage
 #
@@ -111,11 +99,44 @@ log() {
     echo "[$@]"
 }
 
+# Find the real source root
+_find_source_root() {
+    source=$1
+    what_to_find=".backup.directory"
+
+    path=$source
+    while [[ "$path" != "" && ! -e "$path/$what_to_find" ]]; do
+        path=${path%/*}
+    done
+    echo "$path"
+}
+
+
+
+########
+# Return:
+# 1 if backups have been initialized
+# 0 if no backup directory
+########
+_is_initialized() {
+    if [ -e $backup_directory_soft_link/.git ]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
 ########
 # init
 #
 ########
-init() {
+init_backup() {
+    result=$(_is_initialized)
+    if [ $? -eq 1 ]; then
+        log "Already initialized"
+        exit 1
+    fi
+
     log "Initialize backups in: $backup_directory"
 
     # Make directory
@@ -133,14 +154,14 @@ init() {
         _create_git
         _sync_to_backup
         _add_to_git
-        _set_marker
+        _create_softlink
     fi
 }
 
-# Set a marker in the root source directory
-# so we know it's being backed up
-_set_marker() {
-    ln -s $backup_directory ${backup_directory_soft_link}
+# Create soft link to backup directory
+_create_softlink() {
+    /bin/rm -f "${backup_directory_soft_link}"
+    ln -s ${backup_directory} ${backup_directory_soft_link}
 }
 
 # Create git install
@@ -259,23 +280,36 @@ _add_to_git() {
 #
 ########
 start() {
-    if [ -e $pid_file ]; then
-        pid=$(cat $pid_file)
+    # initialized?
+    result=$(_is_initialized)
+    if [ $? -eq 0 ]; then
+        log "Not initialized"
+        echo "Please run:"
+        echo "$0 --init"
+        exit 1
     fi
 
+    # check status
     result=$(status)
     running=$? # 0 = running, 1 down
 
     if [ $running -eq 0 ]; then
+        # Get pid for logging
+        if [ -e $pid_file ]; then
+            pid=$(cat $pid_file)
+        fi
+
         log "Backup is already running in pid $pid"
         exit 0
     fi
 
     log "Starting process to backup '${source_directory}'"
+
     # Start watching program & get pid
     $OUR_DIRECTORY/watch.sh $source_directory $backup_directory &
-
     pid=$!
+
+    # save pid
     echo "$pid" > $pid_file
     log "Backup running in pid ${pid}"
 }
@@ -288,7 +322,9 @@ start() {
 # exits with 0 when running
 ########
 status() {
+    # check pid and if processes are running
     if [ -e $pid_file ]; then
+        # pid exists
         pid=$(cat $pid_file)
         result=$(ps -elf | grep $pid | grep -v grep | wc -l)
         return_code=$?
@@ -302,7 +338,8 @@ status() {
             exit 0
         fi
     else
-        if [ -e $backup_directory_soft_link ]; then
+        # not running
+        if [ -e ${backup_directory_soft_link}/.pid ]; then
             log "Backup for '$source_directory' is stopped. (no pidfile)"
         else
             log "No backup configured for '$source_directory'"
@@ -318,18 +355,23 @@ status() {
 #
 ########
 stop() {
+    # initialized?
+    result=$(_is_initialized)
+    if [ $? -eq 0 ]; then
+        log "Backup is not initialized"
+        exit 1
+    fi
+
     result=$(status)
     running=$? # 0 = running, 1 down
 
     if [ $running -eq 1 ]; then
-        log "Backup is stopped or not configured."
+        log "Backup is stopped"
         exit 0
     fi
 
     if [ -e $pid_file ]; then
         pid=$(cat $pid_file)
-
-
 
         # Get children pids
         children=$(pgrep -P $pid)
@@ -367,7 +409,7 @@ main() {
                 usage
                 ;;
             "--init")
-                init
+                init_backup
                 ;;
             "--start")
                 start
