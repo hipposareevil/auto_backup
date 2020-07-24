@@ -316,6 +316,17 @@ start() {
 }
 
 
+
+# Get number of commits in git repo
+_get_number_commits() {
+    result="n/a"
+    if [ -d ${backup_directory}/.git ]; then
+        result=$(git --git-dir=${backup_directory}/.git rev-list --all --count)
+    fi
+
+    echo ${result}    
+}
+
 ########
 # status
 #
@@ -323,30 +334,50 @@ start() {
 # exits with 0 when running
 ########
 status() {
+    commits=$(_get_number_commits)
+
     # check pid and if processes are running
     if [ -e $pid_file ]; then
-        # pid exists
+        # pidfile
         pid=$(cat $pid_file)
         result=$(ps -elf | grep $pid | grep -v grep | wc -l)
         return_code=$?
 
         if [ $result == "0" ]; then
-            log "Backup for '$source_directory' is stopped ($pid)"
+            ## no process running
             rm $pid_file
-            exit 1
+            log "Backup for '$backup_name' is STOPPED"
+            log "Backup here ${backup_directory}"
+            log "pid: $pid"
+            log "saves: ${commits}"
+            
+            return 1
         else
-            log "Backup for '$source_directory' is running ($pid)"
-            exit 0
+            ## process running
+            log "Backup for '$backup_name' is RUNNING"
+            log "Backup here ${backup_directory}"
+            log "pid: $pid"
+            log "saves: ${commits}"
+            
+            return 0
         fi
     else
-        # not running
-        if [ -e ${softlink_to_backup_directory}/.pid ]; then
-            log "Backup for '$source_directory' is stopped. (no pidfile)"
+        ## No pid file
+
+        # initialized?
+        # 1=initialized
+        result=$(_is_initialized)
+        if [ $? -eq 1 ]; then
+            # initialized
+            log "Backup for '$backup_name' is STOPPED"
+            log "Backup here ${backup_directory}"
+            log "saves: ${commits}"
         else
-            log "No backup configured for '$source_directory'"
+            # not initialized
+            log "No backup configured for '$backup_name'"
         fi
 
-        exit 1
+        return 1
     fi
 }
 
@@ -376,7 +407,6 @@ stop() {
         log "Backup is not initialized"
         return 1
     fi
-    
 
     result=$(status)
     running=$? # 0 = running, 1 down
