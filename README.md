@@ -41,6 +41,7 @@ This will default to /tmp/auto_backup.
     [Initial copy complete]
     [Added to git]
     [Commited to git]
+    $
 
 
 # Usage
@@ -53,18 +54,21 @@ After initializing the backup, you can start, stop, or get status of the backup.
     $ hippowatch.sh --start
     [Starting process to backup '/backup/this/awesome']
     [Backup running in pid 48692]
+    $
 
 ### 2. Get status
 
 
     $ hippowatch.sh --status
     [Backup for '/backup/this/awesome' is running (54999)]
+    $
 
 ### 3. Stop the automatic backup 
 
 
     $ hippowatch.sh --stop
     [Backup stopped (48692)]
+    $
 
 
 ### 4. Example of looking at backups
@@ -72,12 +76,15 @@ After initializing the backup, you can start, stop, or get status of the backup.
 
     $ pwd
     /backup/this/awesome
+
     $ hippowatch.sh --start
     ...
     $ echo "first entry" > some.file
+
     // .backup_directory is soft link to the backup directory
     // You could also just cd to /mywork/backups/awesome.57293790
     $ cd .backup_directory
+
     $ git log -p
     commit 8cbda20287c01c23e333312a28d61867c23794a7 (HEAD -> master)
     Author: YOU <your.email@gmail.com>
@@ -92,8 +99,10 @@ After initializing the backup, you can start, stop, or get status of the backup.
     +++ b/some.file
     @@ -0,0 +1 @@
     +first entry
-    // go back
+
+    // go back to work
     $ cd -
+    $ 
 
 
 
