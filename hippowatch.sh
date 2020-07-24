@@ -40,7 +40,7 @@ initialize_variables() {
     backup_directory="${backup_root_directory}${backup_name}.${directory_id}"
 
     # link from source to backup dir
-    backup_directory_soft_link="${source_directory}/.backup.directory"
+    softlink_to_backup_directory="${source_directory}/.backup.directory"
 
     # pid file
     pid_file="${backup_directory}/.pid"
@@ -83,7 +83,8 @@ usage() {
     echo " --init      Creates backup directory and git infrastructure."
     echo " --start     Start the backup processing."
     echo " --stop      Stop the backup processing."
-    echo " --satus     Determines if the backup is processing."
+    echo " --status    Determines if the backup is processing."
+    echo " --nuke      Stop and nuke backup."
     echo ""
     echo "qed"
 
@@ -119,7 +120,7 @@ _find_source_root() {
 # 0 if no backup directory
 ########
 _is_initialized() {
-    if [ -e $backup_directory_soft_link/.git ]; then
+    if [ -e $softlink_to_backup_directory/.git ]; then
         return 1
     else
         return 0
@@ -160,8 +161,8 @@ init_backup() {
 
 # Create soft link to backup directory
 _create_softlink() {
-    /bin/rm -f "${backup_directory_soft_link}"
-    ln -s ${backup_directory} ${backup_directory_soft_link}
+    /bin/rm -f "${softlink_to_backup_directory}"
+    ln -s ${backup_directory} ${softlink_to_backup_directory}
 }
 
 # Create git install
@@ -339,7 +340,7 @@ status() {
         fi
     else
         # not running
-        if [ -e ${backup_directory_soft_link}/.pid ]; then
+        if [ -e ${softlink_to_backup_directory}/.pid ]; then
             log "Backup for '$source_directory' is stopped. (no pidfile)"
         else
             log "No backup configured for '$source_directory'"
@@ -347,6 +348,20 @@ status() {
 
         exit 1
     fi
+}
+
+
+########
+# nuke
+#
+########
+nuke() {
+    log "Stopping"
+    stop
+
+    log "Nuking backup"
+    rm -rf $softlink_to_backup_directory
+    rm -rf $backup_directory
 }
 
 
@@ -359,15 +374,16 @@ stop() {
     result=$(_is_initialized)
     if [ $? -eq 0 ]; then
         log "Backup is not initialized"
-        exit 1
+        return 1
     fi
+    
 
     result=$(status)
     running=$? # 0 = running, 1 down
 
     if [ $running -eq 1 ]; then
         log "Backup is stopped"
-        exit 0
+        return 0
     fi
 
     if [ -e $pid_file ]; then
@@ -410,6 +426,9 @@ main() {
                 ;;
             "--init")
                 init_backup
+                ;;
+            "--nuke")
+                nuke
                 ;;
             "--start")
                 start
