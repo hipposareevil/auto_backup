@@ -84,6 +84,7 @@ usage() {
     echo " --start     Start the backup processing."
     echo " --stop      Stop the backup processing."
     echo " --status    Determines if the backup is processing."
+    echo " --logit     Print out last change"
     echo " --nuke      Stop and nuke backup."
     echo ""
     echo "qed"
@@ -397,6 +398,18 @@ nuke() {
 
 
 ########
+# log it
+# 
+# Get last logs
+########
+logit() {
+    cd $backup_directory; git log HEAD^..HEAD -p .
+}
+
+
+
+
+########
 # stop
 #
 ########
@@ -459,6 +472,9 @@ main() {
                 ;;
             "--nuke")
                 nuke
+                ;;
+            "--logit")
+                logit
                 ;;
             "--start")
                 start
