@@ -64,6 +64,12 @@ initialize_variables() {
         "exiting."
         exit 1
     fi
+
+    DOWN="👎"
+    UP="👍"
+    OK="👌🏼"
+    FINGER_DOWN="👇"
+    WARNING="⚠️ "
 }
 
 ########
@@ -82,8 +88,10 @@ usage() {
     echo "Options:"
     echo " --init      Creates backup directory and git infrastructure."
     echo " --start     Start the backup processing."
+    echo " --startall  Start all backups."
     echo " --stop      Stop the backup processing."
     echo " --status    Determines if the backup is processing."
+    echo " --list      List all backups in system."
     echo " --logit     Print out last change"
     echo " --nuke      Stop and nuke backup."
     echo ""
@@ -276,6 +284,125 @@ _add_to_git() {
     cd $orig_pwd
 }
 
+#######
+# List all backups
+#
+#######
+list() {
+    log "Finding all backups in $backup_root_directory"
+
+    for file in ${backup_root_directory}* ${backup_root_directory}.* ;
+    do
+        if [[ "$file" == "${backup_root_directory}." ]]; then
+            continue
+        fi
+        if [[ "$file" == "${backup_root_directory}.." ]]; then
+            continue
+        fi
+
+        short_name=$(echo "$file" | sed -e "s#${backup_root_directory}##")
+        local local_backup_directory=$file
+        local local_pid_file=${local_backup_directory}/.pid
+
+        # find the original directory
+        temp="${file}/.source.directory"
+        local source_dir=$(cat $temp)
+
+        # just for loggin
+        line='                           ------------------->'
+
+        if [ -e $local_pid_file ]; then
+            # pidfile
+            pid=$(cat $local_pid_file)
+            ps_result=$(ps -elf | grep $pid | grep -v grep | wc -l)
+            return_code=$?
+
+            if [ $ps_result == "0" ]; then
+                # no process
+                if [ -e $source_dir ]; then
+                    printf "$DOWN : %s %s\n" $short_name "${line:${#short_name}} $source_dir"
+                else
+                    printf "$WARNING : %s %s\n" $short_name "${line:${#short_name}} $source_dir [NO DIRECTORY]"
+                fi
+            else
+                # process is running
+                printf "$UP : %s %s\n" $short_name "${line:${#short_name}} $source_dir"
+            fi
+        else
+            printf "$DOWN : %s %s\n" $short_name "${line:${#short_name}} $source_dir"
+        fi        
+    done
+}
+
+
+
+#######
+# Start all
+#
+#######
+startall() {
+    log "Starting up all backups"
+    for backup_location in ${backup_root_directory}* ${backup_root_directory}.* ;
+    do
+        if [[ "$backup_location" == "${backup_root_directory}." ]]; then
+            continue
+        fi
+        if [[ "$backup_location" == "${backup_root_directory}.." ]]; then
+            continue
+        fi
+
+        short_name=$(echo "$backup_location" | sed -e "s#${backup_root_directory}##")
+        local local_backup_directory=$backup_location
+        local local_pid_file=${local_backup_directory}/.pid
+
+        if [ -e $local_pid_file ]; then
+            # pidfile
+            pid=$(cat $local_pid_file)
+            ps_result=$(ps -elf | grep $pid | grep -v grep | wc -l)
+            return_code=$?
+
+            # find the original directory
+            temp="${backup_location}/.source.directory"
+            local source_dir=$(cat $temp)
+
+            if [ $ps_result == "0" ]; then
+                # No process, start it up
+                if [ -e $source_dir ]; then
+                    # has directory, we can proceed
+                    echo "$UP Start up '$short_name' -> $source_dir"
+                    _start $source_dir $backup_location $local_pid_file
+                else
+                    echo "$FINGER_DOWN Skipping '$short_name'. Source directory is missing ($source_dir)."
+                fi
+            else
+                # process is running
+                echo "$OK Skipping '$short_name' as is already running."
+            fi
+        else
+            echo "$UP Start up '$short_name' -> $source_dir"
+            _start $source_dir $backup_location $local_pid_file
+        fi
+    done
+}
+
+# Start up an inited directory
+# params:
+# 1- source
+# 2- backup_directory
+# 3- pid file
+_start() {
+    local source=$1
+    local backup=$2
+    local local_pid=$3
+
+
+    $OUR_DIRECTORY/watch.sh $source $backup &
+    pid=$!
+    echo "$pid" > $local_pid
+    log "Backup for '$source' now running in pid ${pid}"
+}
+
+
 
 ########
 # start
@@ -319,44 +446,64 @@ start() {
 
 
 # Get number of commits in git repo
+# param:
+# 1- backup directory
 _get_number_commits() {
+    backup=$1
     result="n/a"
-    if [ -d ${backup_directory}/.git ]; then
-        result=$(git --git-dir=${backup_directory}/.git rev-list --all --count)
+    if [ -d ${backup}/.git ]; then
+        result=$(git --git-dir=${backup}/.git rev-list --all --count)
     fi
 
     echo ${result}    
 }
 
 ########
-# status
+# status for normal location
 #
 # exits with 1 when stopped
 # exits with 0 when running
 ########
 status() {
-    commits=$(_get_number_commits)
+    local_backup_directory=$backup_directory
+    _status $local_backup_directory
+    return $?
+}
+
+########
+# get status for a particular directory
+# 
+# params:
+# 1- backup directory to use
+########
+_status() {
+    local local_backup_directory=$1
+    local local_pid_file=${local_backup_directory}/.pid
+
+    commits=$(_get_number_commits $local_backup_directory)
 
     # check pid and if processes are running
-    if [ -e $pid_file ]; then
+    if [ -e $local_pid_file ]; then
         # pidfile
-        pid=$(cat $pid_file)
+        pid=$(cat $local_pid_file)
         result=$(ps -elf | grep $pid | grep -v grep | wc -l)
         return_code=$?
 
         if [ $result == "0" ]; then
             ## no process running
-            rm $pid_file
+            rm $local_pid_file
+            log $DOWN
             log "Backup for '$backup_name' is STOPPED"
-            log "Backup here ${backup_directory}"
+            log "Backup here ${local_backup_directory}"
             log "pid: $pid"
             log "saves: ${commits}"
             
             return 1
         else
             ## process running
+            log $UP
             log "Backup for '$backup_name' is RUNNING"
-            log "Backup here ${backup_directory}"
+            log "Backup here ${local_backup_directory}"
             log "pid: $pid"
             log "saves: ${commits}"
             
@@ -370,11 +517,13 @@ status() {
         result=$(_is_initialized)
         if [ $? -eq 1 ]; then
             # initialized
+            log $DOWN
             log "Backup for '$backup_name' is STOPPED"
-            log "Backup here ${backup_directory}"
+            log "Backup here ${local_backup_directory}"
             log "saves: ${commits}"
         else
             # not initialized
+            log $WARNING
             log "No backup configured for '$backup_name'"
         fi
 
@@ -467,22 +616,28 @@ main() {
             "-h"|"--help")
                 usage
                 ;;
-            "--init")
+            "init"|"--init")
                 init_backup
                 ;;
             "--nuke")
                 nuke
                 ;;
-            "--logit")
+            "logit"|"--logit")
                 logit
                 ;;
-            "--start")
+            "list"|"--list")
+                list
+                ;;
+            "startall"|"--startall")
+                startall
+                ;;
+            "start"|"--start")
                 start
                 ;;
-            "--stop")
+            "stop"|"--stop")
                 stop
                 ;;
-            "--status")
+            "status"|"--status")
                 status
                 ;;
             *)
