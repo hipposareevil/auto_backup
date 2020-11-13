@@ -9,11 +9,9 @@ base=$(basename $file)
 
 # Set all logging to .copy.log
 LOG_FILE=$backup_directory/.copy.log
-if [ ! -e LOG_FILE ]; then
-    LOG_FILE="/tmp/.copy.log"
-fi
-exec 1>$LOG_FILE
-exec 2>&1
+touch $LOG_FILE
+exec 1>> $LOG_FILE
+
 
 # Sync from source directory to backup
 echo ""

@@ -393,13 +393,12 @@ startall() {
 _start() {
     local source=$1
     local backup=$2
-    local local_pid=$3
-
+    local local_pid_file=$3
 
     $OUR_DIRECTORY/watch.sh $source $backup &
     pid=$!
-    echo "$pid" > $local_pid
-    log "Backup for '$source' now running in pid ${pid}"
+    echo "$pid" > $local_pid_file
+    log "Backup for '$source' now running pid ${pid} (${local_pid_file})"
 }
 
 
@@ -432,7 +431,7 @@ start() {
         exit 0
     fi
 
-    log "Starting process to backup '${source_directory}'"
+    log "Backing up directory'${source_directory}' in '${backup_directory}'"
 
     # Start watching program & get pid
     $OUR_DIRECTORY/watch.sh $source_directory $backup_directory &
@@ -440,7 +439,7 @@ start() {
 
     # save pid
     echo "$pid" > $pid_file
-    log "Backup running in pid ${pid}"
+    log "Backup running in pid ${pid}. Stored in ${pid_file}"
 }
 
 
