@@ -10,13 +10,28 @@ _find_source_root() {
     echo "$path"
 }
 
+DOWN="👎"
+UP="👍"
+OK="👌🏼"
+FINGER_DOWN="👇"
+WARNING="⚠️ "
 
-# If directory is under backup control, add a thumbs up or down
+
 prompt_backup() {
     real_root=$(_find_source_root)
     if [ ! -z "$real_root" ]; then
         # find pid file
-        pid_file=${real_root}/.backup.directory/.pid
+
+        backup_directory=${real_root}/.backup.directory
+        if [[ -L "$backup_directory" && -d "$backup_directory" ]]; then
+            # (old) soft link
+            pid_file=$backup_directory/.pid
+        else
+            # file with location
+            temp=$(cat $backup_directory)
+            pid_file="${temp}/.pid"
+        fi
+
         if [ -e $pid_file ]; then
             pid=$(cat $pid_file)
             result=$(ps -elf | grep $pid | grep -v grep | wc -l)
@@ -24,15 +39,18 @@ prompt_backup() {
 
             if [ $result -eq 0 ]; then
                 # backup not running
-                echo -n " 👎"
+                #                echo -n " 👎"
+                echo -n " $DOWN"
             else
                 # backup running
                 # thumbs up
-                echo -n " 👍"
+#                echo -n " 👍"
+                echo -n " $UP"
             fi
 
         else
-            echo -n " 👎"
+ #           echo -n " 👎"
+            echo -n " $DOWN"
         fi
     fi
 }

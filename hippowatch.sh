@@ -39,8 +39,8 @@ initialize_variables() {
     # Subdirectory to put backups
     backup_directory="${backup_root_directory}${backup_name}.${directory_id}"
 
-    # link from source to backup dir
-    softlink_to_backup_directory="${source_directory}/.backup.directory"
+    # file containing location to backup directory
+    backup_directory_location="${source_directory}/.backup.directory"
 
     # pid file
     pid_file="${backup_directory}/.pid"
@@ -129,8 +129,13 @@ _find_source_root() {
 # 0 if no backup directory
 ########
 _is_initialized() {
-    if [ -e $softlink_to_backup_directory/.git ]; then
-        return 1
+    if [ -e $backup_directory_location ]; then
+        backup_git_location=$(cat $backup_directory_location)
+        if [ -e $backup_git_location/.git ]; then
+            return 1
+        else
+            return 0
+        fi
     else
         return 0
     fi
@@ -170,8 +175,8 @@ init_backup() {
 
 # Create soft link to backup directory
 _create_softlink() {
-    /bin/rm -f "${softlink_to_backup_directory}"
-    ln -s ${backup_directory} ${softlink_to_backup_directory}
+    /bin/rm -f "${backup_directory_location}"
+    echo "${backup_directory}" > ${backup_directory_location}
 }
 
 # Create git install
@@ -288,7 +293,7 @@ _add_to_git() {
 # List all backups
 #
 #######
-list() {
+listall() {
     log "Finding all backups in $backup_root_directory"
 
     for file in ${backup_root_directory}* ${backup_root_directory}.* ;
@@ -479,6 +484,8 @@ _status() {
     local local_backup_directory=$1
     local local_pid_file=${local_backup_directory}/.pid
 
+    log "Looking for backup in '$local_backup_directory'"
+
     commits=$(_get_number_commits $local_backup_directory)
 
     # check pid and if processes are running
@@ -522,8 +529,7 @@ _status() {
             log "saves: ${commits}"
         else
             # not initialized
-            log $WARNING
-            log "No backup configured for '$backup_name'"
+            log $WARNING "Backup not initialized for '$backup_name'" $WARNING
         fi
 
         return 1
@@ -540,7 +546,7 @@ nuke() {
     stop
 
     log "Nuking backup"
-    rm -rf $softlink_to_backup_directory
+    rm -rf $backup_directory_location
     rm -rf $backup_directory
 }
 
@@ -624,8 +630,8 @@ main() {
             "logit"|"--logit")
                 logit
                 ;;
-            "list"|"--list")
-                list
+            "listall"|"--listall")
+                listall
                 ;;
             "startall"|"--startall")
                 startall
