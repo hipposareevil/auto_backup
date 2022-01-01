@@ -17,9 +17,15 @@ initialize_variables() {
     OUR_DIRECTORY="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
     # where to backup to
-    backup_root_directory=${BACKUP_ROOT_DIRECTORY:-"/tmp/auto_backup/"}
+    backup_root_directory=${BACKUP_ROOT_DIRECTORY:-"/tmp/auto_backup"}
     backup_root_directory="${backup_root_directory}/"
     
+    # validate backup root directory
+    if [ ! -d "$backup_root_directory" ]; then
+        echo "$backup_root_directory doesn't exist."
+        mkdir -p $backup_root_directory
+    fi
+
     # what directory to back up
     source_directory="${SOURCE_DIRECTORY:-$PWD}"
 
@@ -51,18 +57,18 @@ initialize_variables() {
     # validate git and fswatch
     result=$(which git)
     if [ $? -ne 0 ]; then
-        "Must install git."
-        "> brew install git"
-        "exiting."
-        exit 1
+        echo "Must install git."
+        echo "> brew install git"
+        echo "exiting."
+        return 2
     fi
 
     result=$(which fswatch)
     if [ $? -ne 0 ]; then
-        "Must install fswatch."
-        "> brew install fswatch"
-        "exiting."
-        exit 1
+        echo "Must install fswatch."
+        echo "> brew install fswatch"
+        echo "exiting."
+        return 3
     fi
 
     DOWN="👎"
@@ -311,6 +317,11 @@ listall() {
 
         # find the original directory
         temp="${file}/.source.directory"
+        if [ ! -e $temp ]; then
+            log "No backup in $temp"
+            continue
+        fi
+        
         local source_dir=$(cat $temp)
 
         # just for loggin
@@ -609,6 +620,10 @@ stop() {
 ########
 main() {
     initialize_variables
+    err_code=$?
+    if [ $err_code -ne 0 ]; then
+        return $err_code
+    fi
 
     if [ $# -eq 0 ]
     then
